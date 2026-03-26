@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SKU Scanner</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .header {
+      background: #16213e;
+      border-bottom: 2px solid #0f3460;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      color: #53a8b6;
+      white-space: nowrap;
+    }
+
+    .file-input-wrapper {
+      position: relative;
+    }
+
+    .file-input-wrapper input[type="file"] {
+      display: none;
+    }
+
+    .file-input-wrapper label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 20px;
+      background: #0f3460;
+      color: #53a8b6;
+      border: 1px solid #53a8b6;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .file-input-wrapper label:hover {
+      background: #53a8b6;
+      color: #16213e;
+    }
+
+    .filename {
+      font-size: 14px;
+      color: #a0a0b0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .filename strong {
+      color: #e0e0e0;
+    }
+
+    .main-content {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .viewer-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: #1a1a2e;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .viewer-panel .placeholder {
+      color: #555;
+      font-size: 18px;
+      text-align: center;
+    }
+
+    .viewer-panel img,
+    .viewer-panel video {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+
+    .results-panel {
+      width: 420px;
+      min-width: 420px;
+      background: #16213e;
+      border-left: 2px solid #0f3460;
+      overflow-y: auto;
+      padding: 16px;
+      flex-shrink: 0;
+    }
+
+    .results-panel h2 {
+      font-size: 16px;
+      color: #53a8b6;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #0f3460;
+    }
+
+    .frame-result {
+      background: #1a1a2e;
+      border: 1px solid #0f3460;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .frame-result .frame-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .frame-result .frame-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #53a8b6;
+    }
+
+    .frame-result .frame-thumb {
+      width: 80px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 4px;
+      border: 1px solid #0f3460;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .frame-result .frame-thumb:hover {
+      border-color: #53a8b6;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .tag-single_item { background: #1b4332; color: #52b788; }
+    .tag-case_pack { background: #3a2d00; color: #f4a623; }
+    .tag-pallet { background: #3d1308; color: #e85d4a; }
+    .tag-unknown { background: #333; color: #aaa; }
+
+    .detail-row {
+      display: flex;
+      margin: 6px 0;
+      font-size: 13px;
+    }
+
+    .detail-label {
+      width: 110px;
+      flex-shrink: 0;
+      color: #888;
+      font-weight: 500;
+    }
+
+    .detail-value {
+      color: #e0e0e0;
+      word-break: break-word;
+    }
+
+    .confidence-high { color: #52b788; }
+    .confidence-medium { color: #f4a623; }
+    .confidence-low { color: #e85d4a; }
+
+    .loading-card {
+      background: #1a1a2e;
+      border: 1px solid #0f3460;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 3px solid #0f3460;
+      border-top-color: #53a8b6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 8px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-card p {
+      color: #888;
+      font-size: 13px;
+    }
+
+    .error-msg {
+      color: #e85d4a;
+      font-size: 13px;
+      padding: 8px;
+      background: rgba(232, 93, 74, 0.1);
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+
+    .summary-bar {
+      background: #0f3460;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      display: none;
+    }
+
+    .summary-bar.visible { display: block; }
+
+    .summary-bar .summary-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin: 3px 0;
+    }
+
+    .summary-bar .summary-label { color: #888; }
+    .summary-bar .summary-value { color: #53a8b6; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>SKU Scanner</h1>
+    <div class="file-input-wrapper">
+      <input type="file" id="fileInput" accept="image/*,video/*">
+      <label for="fileInput">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+          <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/>
+        </svg>
+        Select Photo or Video
+      </label>
+    </div>
+    <div class="filename" id="filenameDisplay">No file selected</div>
+  </div>
+
+  <div class="main-content">
+    <div class="viewer-panel" id="viewerPanel">
+      <div class="placeholder">Select a photo or video to begin analysis</div>
+    </div>
+
+    <div class="results-panel" id="resultsPanel">
+      <h2>Analysis Results</h2>
+      <div id="summaryBar" class="summary-bar">
+        <div class="summary-row">
+          <span class="summary-label">Frames Analyzed</span>
+          <span class="summary-value" id="summaryFrames">0</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Total Est. SKUs</span>
+          <span class="summary-value" id="summarySkus">0</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Total Est. Case Packs</span>
+          <span class="summary-value" id="summaryCases">0</span>
+        </div>
+      </div>
+      <div id="resultsContainer">
+        <p style="color: #555; font-size: 14px;">Results will appear here after analysis.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const filenameDisplay = document.getElementById('filenameDisplay');
+    const viewerPanel = document.getElementById('viewerPanel');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const summaryBar = document.getElementById('summaryBar');
+
+    let analysisResults = [];
+
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      filenameDisplay.innerHTML = `<strong>${file.name}</strong> (${formatSize(file.size)})`;
+      resultsContainer.innerHTML = '';
+      analysisResults = [];
+      summaryBar.classList.remove('visible');
+
+      const isVideo = file.type.startsWith('video/');
+
+      if (isVideo) {
+        await handleVideo(file);
+      } else {
+        await handleImage(file);
+      }
+    });
+
+    async function handleImage(file) {
+      const url = URL.createObjectURL(file);
+      viewerPanel.innerHTML = `<img src="${url}" alt="Selected image">`;
+
+      resultsContainer.innerHTML = loadingCard('Analyzing image...');
+      const { base64, mediaType } = await resizeImage(file);
+
+      try {
+        const result = await analyzeImage(base64, mediaType);
+        analysisResults = [result];
+        resultsContainer.innerHTML = '';
+        resultsContainer.appendChild(createResultCard(result, 'Image'));
+        updateSummary();
+      } catch (err) {
+        resultsContainer.innerHTML = `<div class="error-msg">Error: ${err.message}</div>`;
+      }
+    }
+
+    async function handleVideo(file) {
+      const url = URL.createObjectURL(file);
+      viewerPanel.innerHTML = `<video src="${url}" controls style="max-width:100%;max-height:100%"></video>`;
+
+      resultsContainer.innerHTML = loadingCard('Extracting frames from video...');
+
+      try {
+        const frames = await extractFrames(url);
+        resultsContainer.innerHTML = '';
+
+        for (let i = 0; i < frames.length; i++) {
+          const frameId = `frame-${i}`;
+          const loadingEl = document.createElement('div');
+          loadingEl.className = 'loading-card';
+          loadingEl.id = frameId;
+          loadingEl.innerHTML = `<div class="spinner"></div><p>Analyzing frame ${i + 1} of ${frames.length}...</p>`;
+          resultsContainer.appendChild(loadingEl);
+
+          try {
+            const base64 = frames[i].data.split(',')[1];
+            const result = await analyzeImage(base64, 'image/jpeg');
+            result._thumb = frames[i].data;
+            result._timestamp = frames[i].timestamp;
+            analysisResults.push(result);
+
+            const card = createResultCard(result, `Frame ${i + 1} (${frames[i].timestamp.toFixed(1)}s)`);
+            loadingEl.replaceWith(card);
+            updateSummary();
+          } catch (err) {
+            document.getElementById(frameId).innerHTML = `<div class="error-msg">Frame ${i + 1}: ${err.message}</div>`;
+          }
+        }
+      } catch (err) {
+        resultsContainer.innerHTML = `<div class="error-msg">Error extracting frames: ${err.message}</div>`;
+      }
+    }
+
+    function extractFrames(videoUrl) {
+      return new Promise((resolve, reject) => {
+        const video = document.createElement('video');
+        video.crossOrigin = 'anonymous';
+        video.muted = true;
+
+        video.onloadedmetadata = () => {
+          const duration = video.duration;
+          const frameCount = Math.min(Math.max(Math.floor(duration / 2), 2), 10);
+          const interval = duration / (frameCount + 1);
+          const frames = [];
+          let currentFrame = 0;
+          const times = [];
+
+          for (let i = 1; i <= frameCount; i++) {
+            times.push(interval * i);
+          }
+
+          video.onseeked = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.min(video.videoWidth, 1280);
+            canvas.height = Math.round(canvas.width * (video.videoHeight / video.videoWidth));
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            frames.push({
+              data: canvas.toDataURL('image/jpeg', 0.85),
+              timestamp: times[currentFrame]
+            });
+            currentFrame++;
+
+            if (currentFrame < times.length) {
+              video.currentTime = times[currentFrame];
+            } else {
+              resolve(frames);
+            }
+          };
+
+          video.currentTime = times[0];
+        };
+
+        video.onerror = () => reject(new Error('Could not load video'));
+        video.src = videoUrl;
+      });
+    }
+
+    async function analyzeImage(base64Data, mediaType) {
+      const resp = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64Data, mediaType })
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.error || 'Analysis failed');
+      }
+
+      return resp.json();
+    }
+
+    function loadingCard(message) {
+      return `<div class="loading-card"><div class="spinner"></div><p>${message}</p></div>`;
+    }
+
+    function createResultCard(result, label) {
+      const card = document.createElement('div');
+      card.className = 'frame-result';
+
+      const typeLabel = {
+        single_item: 'Single Item',
+        case_pack: 'Case Pack',
+        pallet: 'Pallet',
+        unknown: 'Unknown'
+      }[result.item_type] || result.item_type;
+
+      let thumbHtml = '';
+      if (result._thumb) {
+        thumbHtml = `<img class="frame-thumb" src="${result._thumb}" alt="${label}" onclick="showFrameInViewer(this.src)">`;
+      }
+
+      let detailsHtml = `
+        <div class="detail-row">
+          <span class="detail-label">Description</span>
+          <span class="detail-value">${result.description || 'N/A'}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Item ID</span>
+          <span class="detail-value">${result.item_id || 'Not identified'}</span>
+        </div>`;
+
+      if (result.brand) {
+        detailsHtml += `
+        <div class="detail-row">
+          <span class="detail-label">Brand</span>
+          <span class="detail-value">${result.brand}</span>
+        </div>`;
+      }
+
+      detailsHtml += `
+        <div class="detail-row">
+          <span class="detail-label">Est. SKUs</span>
+          <span class="detail-value">${result.estimated_sku_quantity ?? 'N/A'}</span>
+        </div>`;
+
+      if (result.item_type === 'pallet' && result.estimated_case_packs != null) {
+        detailsHtml += `
+        <div class="detail-row">
+          <span class="detail-label">Est. Cases</span>
+          <span class="detail-value">${result.estimated_case_packs}</span>
+        </div>`;
+      }
+
+      detailsHtml += `
+        <div class="detail-row">
+          <span class="detail-label">Confidence</span>
+          <span class="detail-value confidence-${result.confidence}">${(result.confidence || 'N/A').toUpperCase()}</span>
+        </div>`;
+
+      if (result.additional_notes) {
+        detailsHtml += `
+        <div class="detail-row">
+          <span class="detail-label">Notes</span>
+          <span class="detail-value">${result.additional_notes}</span>
+        </div>`;
+      }
+
+      card.innerHTML = `
+        <div class="frame-header">
+          <div>
+            <span class="frame-label">${label}</span>
+            <span class="tag tag-${result.item_type}">${typeLabel}</span>
+          </div>
+          ${thumbHtml}
+        </div>
+        ${detailsHtml}
+      `;
+
+      return card;
+    }
+
+    function updateSummary() {
+      if (analysisResults.length === 0) return;
+
+      summaryBar.classList.add('visible');
+      document.getElementById('summaryFrames').textContent = analysisResults.length;
+
+      let totalSkus = 0;
+      let totalCases = 0;
+      analysisResults.forEach(r => {
+        totalSkus += r.estimated_sku_quantity || 0;
+        totalCases += r.estimated_case_packs || 0;
+      });
+
+      document.getElementById('summarySkus').textContent = totalSkus;
+      document.getElementById('summaryCases').textContent = totalCases || '—';
+    }
+
+    function showFrameInViewer(src) {
+      viewerPanel.innerHTML = `<img src="${src}" alt="Frame preview">`;
+    }
+
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function resizeImage(file, maxBytes = 4 * 1024 * 1024) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          let quality = 0.85;
+          let scale = 1;
+          const maxDim = 2048;
+
+          if (width > maxDim || height > maxDim) {
+            scale = maxDim / Math.max(width, height);
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          let dataUrl = canvas.toDataURL('image/jpeg', quality);
+          while (dataUrl.length * 0.75 > maxBytes && quality > 0.3) {
+            quality -= 0.1;
+            dataUrl = canvas.toDataURL('image/jpeg', quality);
+          }
+
+          resolve({
+            base64: dataUrl.split(',')[1],
+            mediaType: 'image/jpeg'
+          });
+        };
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+  </script>
+</body>
+</html>
